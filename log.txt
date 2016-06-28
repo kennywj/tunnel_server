@@ -1,0 +1,12 @@
+gcc link.c -c -D LINUX -I. -Wall -s -O0 -g -D_XOPEN_SOURCE -D_GNU_SOURCE -g -DFD_SETSIZE=1024 -D_OPEN_SECURED_CONN
+gcc cmd.c -c -D LINUX -I. -Wall -s -O0 -g -D_XOPEN_SOURCE -D_GNU_SOURCE -g -DFD_SETSIZE=1024 -D_OPEN_SECURED_CONN
+gcc console.c -c -D LINUX -I. -Wall -s -O0 -g -D_XOPEN_SOURCE -D_GNU_SOURCE -g -DFD_SETSIZE=1024 -D_OPEN_SECURED_CONN
+gcc parser.c -c -D LINUX -I. -Wall -s -O0 -g -D_XOPEN_SOURCE -D_GNU_SOURCE -g -DFD_SETSIZE=1024 -D_OPEN_SECURED_CONN
+parser.c: In function ‘parser’:
+parser.c:162:5: warning: suggest parentheses around assignment used as truth value [-Wparentheses]
+     for(_p_tokpos=0;c=line[*next];++(*next))      /* main loop */
+     ^
+gcc cJSON.c -c -D LINUX -I. -Wall -s -O0 -g -D_XOPEN_SOURCE -D_GNU_SOURCE -g -DFD_SETSIZE=1024 -D_OPEN_SECURED_CONN
+gcc clouds.c -c -D LINUX -I. -Wall -s -O0 -g -D_XOPEN_SOURCE -D_GNU_SOURCE -g -DFD_SETSIZE=1024 -D_OPEN_SECURED_CONN
+gcc sslsock_server.c -c -D LINUX -I. -Wall -s -O0 -g -D_XOPEN_SOURCE -D_GNU_SOURCE -g -DFD_SETSIZE=1024 -D_OPEN_SECURED_CONN
+gcc main.o tunnel.o tunnutil.o tunnmsg.o link.o cmd.o console.o parser.o cJSON.o clouds.o sslsock_server.o -o cvrdaemon -lpthread -Wl,-Map,cvrdaemon.map -lm -lssl -lcrypto -lcurl

@@ -27,7 +27,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <curl/curl.h>
-#include "triclouds_api.h"
+#ifdef _OPEN_SECURED_CONN
+#include "openssl/bio.h"
+#include "openssl/ssl.h"
+#include "openssl/err.h"
+#include "openssl/pem.h"
+#include "openssl/x509.h"
+#include "openssl/x509_vfy.h"
+#endif
+#include "tunnel_ext.h"
+//extern int p2p_log_msg(char *fmt, ...);
+
 
 struct url_data {
     size_t size;
@@ -44,17 +54,11 @@ response_handler(void *contents, size_t size, size_t nmemb, void *userp)
 	struct url_data *data = (struct url_data *)userp;
     size_t n = (size * nmemb);
         
-//#ifdef DEBUG
-//    fprintf(stderr, "prev data at %p, size=%ld\n", data->data, data->size);
-//#endif
     data->data = realloc(data->data, data->size + n + 1); /* +1 for '\0' */
     if(data->data==NULL) {
-        fprintf(stderr, "Failed to allocate memory.\n");
+        p2p_log_msg( "Failed to allocate memory.\n");
         return 0;
     }
-//#ifdef DEBUG
-//    fprintf(stderr, "after data at %p, size=%ld, new %ld\n", data->data, data->size, n);
-//#endif
     memcpy(&data->data[data->size], contents, n);
     data->size += n;
     data->data[data->size] = '\0';
@@ -94,9 +98,9 @@ int clouds_service(char *url, char *cmd, char *resp, int bufsize)
     /* First set the URL that is about to receive our POST. This URL can
        just as well be a https:// URL if that is what should receive the
        data. */
-//#ifdef DEBUG
-//        fprintf(stderr, "%s\n%s\n", url, cmd);
-//#endif       
+#ifdef DEBUG
+        p2p_log_msg( "%s\n%s\n", url, cmd);
+#endif       
     	curl_easy_setopt(curl, CURLOPT_URL, url);
     	struct curl_slist *headers = NULL;
     	headers = curl_slist_append(headers, "Accept: application/json");
@@ -115,8 +119,7 @@ int clouds_service(char *url, char *cmd, char *resp, int bufsize)
     	res = curl_easy_perform(curl);
     	/* Check for errors */
     	if (res != CURLE_OK)
-      		fprintf(stderr, "curl_easy_perform() failed: %s\n",
-        curl_easy_strerror(res));
+      		p2p_log_msg( "curl_easy_perform() failed: %s %s\n", curl_easy_strerror(res), url);
 
     	/* always cleanup */
     	curl_easy_cleanup(curl);
@@ -128,8 +131,87 @@ int clouds_service(char *url, char *cmd, char *resp, int bufsize)
   
 		n = (data.size>(bufsize-1)?(bufsize-1):data.size);
 //#ifdef DEBUG
-//    	fprintf(stderr, "datasize %d, bufsize %d, %s\n", data.size, bufsize, data.data);
+//    	p2p_log_msg( "datasize %d, bufsize %d, %s\n", data.size, bufsize, data.data);
 //#endif		    
+		memcpy(resp, data.data,n);
+		resp[n]='\0';
+  		free(data.data);
+	}
+	else
+		return -res;
+   	return n;
+}
+
+
+
+//
+// 	function:	clouds_put_service
+//	Description
+//	interface function to Triclouds service,
+//  parameter:
+//		url:	RESTFull API URL
+//		cmd:	command (JSON format)
+//		resp: 	buffer for response.
+//		bufsize:buffer size of response
+//	return:
+//		>=0 size of response message
+//		<0:	error code
+//        
+int clouds_put_service(char *url, char *cmd, char *resp, int bufsize)
+{
+  	CURL *curl;
+  	CURLcode res=CURLE_OK ;
+	struct url_data data;
+	int n=-1;
+	
+    data.size = 0;
+    data.data = malloc(1); /* reasonable size initial buffer */
+    
+  	/* In windows, this will init the winsock stuff */
+  	curl_global_init(CURL_GLOBAL_ALL);
+
+  	/* get a curl handle */
+  	curl = curl_easy_init();
+  	if(curl) {
+    /* First set the URL that is about to receive our POST. This URL can
+       just as well be a https:// URL if that is what should receive the
+       data. */
+#ifdef DEBUG
+        p2p_log_msg( "%s\n%s\n", url, cmd);
+#endif       
+    	struct curl_slist *headers = NULL;
+    	
+    	//headers = curl_slist_append(headers, client_id_header);
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+        
+        // set up receive function
+    	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, response_handler);
+    	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
+    	
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers); 
+        curl_easy_setopt(curl, CURLOPT_URL, url);  
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT"); /* !!! */
+
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, cmd); /* data goes here */
+
+    	/* Perform the request, res will get the return code */
+    	res = curl_easy_perform(curl);
+    	/* Check for errors */
+    	if (res != CURLE_OK)
+      		p2p_log_msg( "curl_easy_perform() failed: %s %s\n", curl_easy_strerror(res), url);
+
+    	/* always cleanup */
+    	curl_easy_cleanup(curl);
+    	curl_slist_free_all(headers);
+  	}
+  	curl_global_cleanup();
+  	if (res == CURLE_OK && data.data)
+ 	{
+  
+		n = (data.size>(bufsize-1)?(bufsize-1):data.size);
+#ifdef DEBUG
+    	p2p_log_msg( "datasize %d, bufsize %d, %s\n", data.size, bufsize, data.data);
+#endif		    
 		memcpy(resp, data.data,n);
 		resp[n]='\0';
   		free(data.data);
