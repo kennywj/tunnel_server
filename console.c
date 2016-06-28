@@ -41,6 +41,7 @@ void
 reset_input_mode (void)
 {
   tcsetattr (STDIN_FILENO, TCSANOW, &saved_attributes);
+  printf("recover terminal setting, bye\n");
 }
 
 void
@@ -185,7 +186,7 @@ void do_console()
 			    }
 			    memset(cmdbuf,0,256);
 			    count=0;
-   			    printf("Device>");      // prompt
+   			    printf("Server>");      // prompt
 		    }
 		    else if ((ch >= ' ') && (ch < 127))		// got printable char
 	        {
